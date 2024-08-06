@@ -1,5 +1,6 @@
 // External imports
 use serde::Serialize;
+use std::collections::HashMap;
 
 // Imports from super
 use super::Snapshot;
@@ -23,7 +24,10 @@ impl Visitor {
         self.snapshots[0].add_decision(campaign_id, experiment_id, variation_id);
     }
 
-    pub fn add_event(&mut self, entity_id: String, event_key: String) {
-        self.snapshots[0].add_event(entity_id, event_key);
+    pub fn add_event(
+        &mut self, entity_id: String, event_key: String, properties: HashMap<String, String>,
+        tags: HashMap<String, String>,
+    ) {
+        self.snapshots[0].add_event(entity_id, event_key, properties, tags);
     }
 }

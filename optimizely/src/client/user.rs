@@ -87,8 +87,25 @@ impl UserContext<'_> {
     }
 
     #[cfg(feature = "online")]
-    /// Track a conversion event for this user
+    /// Track a conversion event (without properties and tags) for this user
     pub fn track_event(&self, event_key: &str) {
+        let properties = HashMap::default();
+        let tags = HashMap::default();
+        self.track_event_with_properties_and_tags(event_key, properties, tags)
+    }
+
+    #[cfg(feature = "online")]
+    /// Track a conversion event with properties (but without tags) for this user
+    pub fn track_event_with_properties(&self, event_key: &str, properties: HashMap<String, String>) {
+        let tags = HashMap::default();
+        self.track_event_with_properties_and_tags(event_key, properties, tags)
+    }
+
+    #[cfg(feature = "online")]
+    /// Track a conversion event with properties and tags for this user
+    pub fn track_event_with_properties_and_tags(
+        &self, event_key: &str, properties: HashMap<String, String>, tags: HashMap<String, String>,
+    ) {
         match self.client.datafile().event(event_key) {
             Some(event) => {
                 log::debug!("Logging conversion event");
@@ -99,7 +116,8 @@ impl UserContext<'_> {
                 let event_id = event.id();
 
                 // Create event_api::Event to send to dispatcher
-                let conversion_event = event_api::Event::conversion(account_id, user_id, event_id, event_key);
+                let conversion_event =
+                    event_api::Event::conversion(account_id, user_id, event_id, event_key, properties, tags);
 
                 // Ignore result of the send_decision function
                 self.client.event_dispatcher().send_event(conversion_event);

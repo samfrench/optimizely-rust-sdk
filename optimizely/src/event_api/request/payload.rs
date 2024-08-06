@@ -1,8 +1,10 @@
 // External imports
 use serde::Serialize;
+use std::collections::HashMap;
 
 // Imports from super
-use super::{super::Event, Visitor};
+use super::Visitor;
+use crate::event_api::Event;
 
 // Information regarding the SDK client
 const CLIENT_NAME: &str = "rust-sdk";
@@ -62,16 +64,24 @@ impl Payload<'_> {
                 // Add decision to visitor
                 visitor.add_decision(campaign_id, experiment_id, variation_id);
 
+                // Campaign activated event does not have tags or properties
+                let properties = HashMap::default();
+                let tags = HashMap::default();
+
                 // Add campaign_activated event
-                visitor.add_event(entity_id, String::from(ACTIVATE_EVENT_KEY));
+                visitor.add_event(entity_id, String::from(ACTIVATE_EVENT_KEY), properties, tags);
             }
             Event::Conversion {
-                event_id, event_key, ..
+                event_id,
+                event_key,
+                properties,
+                tags,
+                ..
             } => {
                 log::debug!("Adding conversion event to log payload");
 
                 // Add custom event
-                visitor.add_event(event_id, event_key);
+                visitor.add_event(event_id, event_key, properties, tags);
             }
         }
 

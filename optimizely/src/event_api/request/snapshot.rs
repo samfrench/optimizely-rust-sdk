@@ -1,5 +1,6 @@
 // External imports
 use serde::Serialize;
+use std::collections::HashMap;
 
 // Imports from super
 use super::{Decision, Event};
@@ -20,8 +21,11 @@ impl Snapshot {
         self.decisions.push(decision);
     }
 
-    pub fn add_event(&mut self, entity_id: String, event_key: String) {
-        let event = Event::new(entity_id, event_key);
+    pub fn add_event(
+        &mut self, entity_id: String, event_key: String, properties: HashMap<String, String>,
+        tags: HashMap<String, String>,
+    ) {
+        let event = Event::new(entity_id, event_key, properties, tags);
         self.events.push(event);
     }
 }

@@ -1,9 +1,12 @@
-/// Representation of the events which can be dispatched to Optimizely Event API
+use std::collections::HashMap;
+
+/// Representation of the events which can be *dispatched* to Optimizely Event API.
 ///
 /// An event can either be a decision or conversion.
 ///
 /// ```
 /// use optimizely::event_api::Event;
+/// use std::collections::HashMap;
 ///
 /// // Create some example IDs
 /// let account_id = "21537940595";
@@ -13,6 +16,9 @@
 /// let variation_id = "87757";
 /// let event_id = "22305150298";
 /// let event_key = "purchase";
+///
+/// let properties = HashMap::default();
+/// let tags = HashMap::default();
 ///
 /// // Create two events from above IDs
 /// let decision = Event::decision(
@@ -26,7 +32,9 @@
 ///     account_id,
 ///     user_id,
 ///     event_id,
-///     event_key
+///     event_key,
+///     properties,
+///     tags,
 /// );
 ///
 /// // Assertions
@@ -60,6 +68,10 @@ pub enum Event {
         event_id: String,
         #[doc(hidden)]
         event_key: String,
+        #[doc(hidden)]
+        properties: HashMap<String, String>,
+        #[doc(hidden)]
+        tags: HashMap<String, String>,
     },
 }
 
@@ -78,12 +90,17 @@ impl Event {
     }
 
     /// Constructor for a new decision event
-    pub fn conversion<T: Into<String>>(account_id: T, user_id: T, event_id: T, event_key: T) -> Event {
+    pub fn conversion<T: Into<String>>(
+        account_id: T, user_id: T, event_id: T, event_key: T, properties: HashMap<String, String>,
+        tags: HashMap<String, String>,
+    ) -> Event {
         Event::Conversion {
             account_id: account_id.into(),
             user_id: user_id.into(),
             event_id: event_id.into(),
             event_key: event_key.into(),
+            properties: properties,
+            tags: tags,
         }
     }
 
