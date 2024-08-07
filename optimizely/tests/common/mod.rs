@@ -6,8 +6,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 // Imports from Optimizely crate
-use optimizely::event_api::{Event, EventDispatcher};
-use optimizely::Client;
+use optimizely::{Client, client::UserContext, Conversion, Decision, event_api::EventDispatcher};
 
 // This is the account ID of mark.biesheuvel@optimizely.com
 pub const ACCOUNT_ID: &str = "21537940595";
@@ -22,26 +21,37 @@ pub const FILE_PATH: &str = "../datafiles/sandbox.json";
 // This is the revision number of the bundled datafile
 pub const REVISION: u32 = 73;
 
-// List of Events wrapped in a reference counted mutable memory location
-type EventList = Rc<RefCell<Vec<Event>>>;
+// List of conversions wrapped in a reference counted mutable memory location
+type ConversionList = Rc<RefCell<Vec<Conversion>>>;
+
+// List of decisions wrapped in a reference counted mutable memory location
+type DecisionList = Rc<RefCell<Vec<Decision>>>;
 
 // Struct that holds the EventList and implement the EventDispatcher trait
 #[derive(Default)]
 pub(super) struct EventStore {
-    list: Rc<RefCell<Vec<Event>>>,
+    conversions: ConversionList,
+    decisions: DecisionList,
 }
 
 // Return a new reference counted point to the list
 impl EventStore {
-    fn list(&self) -> Rc<RefCell<Vec<Event>>> {
-        Rc::clone(&self.list)
+    fn conversions(&self) -> ConversionList {
+        Rc::clone(&self.conversions)
+    }
+
+    fn decisions(&self) -> DecisionList {
+        Rc::clone(&self.decisions)
     }
 }
 
 // Implementing the EventDispatcher using the interior mutability pattern
 impl EventDispatcher for EventStore {
-    fn send_event(&self, event: Event) {
-        self.list.borrow_mut().push(event);
+    fn send_conversion_event(&self, _user_context: &UserContext, conversion: Conversion){
+        self.conversions.borrow_mut().push(conversion);
+    }
+    fn send_decision_event(&self, _user_context: &UserContext, decision: Decision) {
+        self.decisions.borrow_mut().push(decision);
     }
 }
 
@@ -50,14 +60,18 @@ impl EventDispatcher for EventStore {
 // - a list of events that was send to the EventDispatcher
 pub struct TestContext {
     pub client: Client,
-    pub event_list: EventList,
+    pub conversions: ConversionList,
+    pub decisions: DecisionList,
 }
 
 // A setup function used in multiple tests
 pub(super) fn setup() -> TestContext {
     // Create a struct to store events
     let event_store = EventStore::default();
-    let event_list = event_store.list();
+
+    // Clone RC
+    let conversions = event_store.conversions();
+    let decisions = event_store.decisions();
 
     // Build client
     let client = Client::from_local_datafile(FILE_PATH)
@@ -65,5 +79,5 @@ pub(super) fn setup() -> TestContext {
         .with_event_dispatcher(event_store)
         .initialize();
 
-    TestContext { client, event_list }
+    TestContext { client, conversions, decisions }
 }

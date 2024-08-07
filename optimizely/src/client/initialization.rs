@@ -1,5 +1,5 @@
 // External imports
-use error_stack::{IntoReport, Result, ResultExt};
+use error_stack::{Result, ResultExt};
 use std::fs::File;
 use std::io::Read;
 
@@ -44,13 +44,11 @@ impl Client {
         // TODO: implement polling mechanism
         let response = ureq::get(&url)
             .call()
-            .into_report()
             .change_context(ClientError::FailedRequest)?;
 
         // Get response body
         let content = response
             .into_string()
-            .into_report()
             .change_context(ClientError::FailedResponse)?;
 
         // Use response to build Client
@@ -63,13 +61,10 @@ impl Client {
         let mut content = String::new();
 
         // Open file
-        let mut file = File::open(file_path)
-            .into_report()
-            .change_context(ClientError::FailedFileOpen)?;
+        let mut file = File::open(file_path).change_context(ClientError::FailedFileOpen)?;
 
         // Read file content into String
         file.read_to_string(&mut content)
-            .into_report()
             .change_context(ClientError::FailedFileRead)?;
 
         // Use file content to build Client

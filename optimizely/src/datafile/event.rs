@@ -22,7 +22,6 @@ impl Event {
     }
 
     /// Getter for `id` field
-    #[allow(dead_code)]
     pub fn id(&self) -> &str {
         &self.id
     }

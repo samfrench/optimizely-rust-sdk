@@ -1,12 +1,12 @@
 //! Parsing the Optimizely datafile
 
 // External imports
-use error_stack::{IntoReport, Result, ResultExt};
+use error_stack::{Result, ResultExt};
 
 // Relative imports of sub modules
 use environment::Environment;
 pub use error::DatafileError;
-use event::Event;
+pub(crate) use event::Event;
 pub(crate) use experiment::Experiment;
 pub(crate) use feature_flag::FeatureFlag;
 use rollout::Rollout;
@@ -39,9 +39,7 @@ impl Datafile {
     /// Construct a new Datafile from a string containing a JSON document
     pub fn build(content: &str) -> Result<Datafile, DatafileError> {
         // Parse the JSON content via Serde into Rust structs
-        let environment: Environment = serde_json::from_str(content)
-            .into_report()
-            .change_context(DatafileError::InvalidJson)?;
+        let environment: Environment = serde_json::from_str(content).change_context(DatafileError::InvalidJson)?;
 
         Ok(Datafile(environment))
     }

@@ -3,11 +3,9 @@ use fasthash::murmur3::hash32_with_seed as murmur3_hash;
 use std::collections::HashMap;
 
 // Imports from crate
+use crate::conversion::Conversion;
 use crate::datafile::{Experiment, FeatureFlag, Variation};
 use crate::decision::{DecideOptions, Decision};
-
-#[cfg(feature = "online")]
-use crate::event_api;
 
 // Imports from super
 use super::Client;
@@ -75,6 +73,11 @@ impl UserContext<'_> {
         self.attributes.insert(key, value);
     }
 
+    /// Get the client instance
+    pub fn client(&self) -> &Client {
+        self.client
+    }
+
     /// Get the id of a user
     pub fn user_id(&self) -> &str {
         self.user_id
@@ -106,21 +109,18 @@ impl UserContext<'_> {
     pub fn track_event_with_properties_and_tags(
         &self, event_key: &str, properties: HashMap<String, String>, tags: HashMap<String, String>,
     ) {
+        // Find the event key in the datafile
         match self.client.datafile().event(event_key) {
             Some(event) => {
                 log::debug!("Logging conversion event");
 
-                // Send out a decision event as a side effect
-                let user_id = self.user_id();
-                let account_id = self.client.datafile().account_id();
-                let event_id = event.id();
-
-                // Create event_api::Event to send to dispatcher
-                let conversion_event =
-                    event_api::Event::conversion(account_id, user_id, event_id, event_key, properties, tags);
+                // Create conversion to send to dispatcher
+                let conversion = Conversion::new(event_key, event.id(), properties, tags);
 
                 // Ignore result of the send_decision function
-                self.client.event_dispatcher().send_event(conversion_event);
+                self.client
+                    .event_dispatcher()
+                    .send_conversion_event(self, conversion);
             }
             None => {
                 log::warn!("Event key does not exist in datafile");
@@ -129,13 +129,13 @@ impl UserContext<'_> {
     }
 
     /// Decide which variation to show to a user
-    pub fn decide<'b>(&self, flag_key: &'b str) -> Decision<'b> {
+    pub fn decide(&self, flag_key: &str) -> Decision {
         let options = DecideOptions::default();
         self.decide_with_options(flag_key, &options)
     }
 
     /// Decide which variation to show to a user
-    pub fn decide_with_options<'b>(&self, flag_key: &'b str, options: &DecideOptions) -> Decision<'b> {
+    pub fn decide_with_options(&self, flag_key: &str, options: &DecideOptions) -> Decision {
         // Retrieve Flag object
         let flag = match self.client.datafile().flag(flag_key) {
             Some(flag) => flag,
@@ -147,38 +147,58 @@ impl UserContext<'_> {
         };
 
         // Only send decision events if the disable_decision_event option is false
-        let send_decision = !options.disable_decision_event;
+        let mut send_decision = !options.disable_decision_event;
 
         // Get the selected variation for the given flag
-        match self.decide_variation_for_flag(flag, send_decision) {
-            Some(variation) => {
+        let decision = match self.decide_variation_for_flag(flag, &mut send_decision) {
+            Some((experiment, variation)) => {
                 // Unpack the variation and create Decision struct
-                Decision::new(flag_key, variation.is_feature_enabled(), variation.key())
+                Decision::new(
+                        flag_key,
+                        experiment.campaign_id(),
+                        experiment.id(),
+                        variation.id(),
+                        variation.key(),
+                        variation.is_feature_enabled(),
+                    )
             }
             None => {
                 // No experiment or rollout found, or user does not qualify for any
                 Decision::off(flag_key)
             }
+        };
+
+        #[cfg(feature = "online")]
+        if send_decision {
+            self.client.event_dispatcher().send_decision_event(&self, decision.clone());
         }
+
+        // Return
+        decision
     }
 
-    fn decide_variation_for_flag<'a>(&'a self, flag: &'a FeatureFlag, send_decision: bool) -> Option<&Variation> {
+    fn decide_variation_for_flag(&self, flag: &FeatureFlag, send_decision: &mut bool) -> Option<(&Experiment, &Variation)> {
         // Find first Experiment for which this user qualifies
         let result = flag.experiments_ids().iter().find_map(|experiment_id| {
             let experiment = self.client.datafile().experiment(experiment_id);
 
             match experiment {
-                Some(experiment) => self.decide_variation_for_experiment(experiment, send_decision),
+                Some(experiment) => self.decide_variation_for_experiment(experiment),
                 None => None,
             }
         });
 
         match result {
             Some(_) => {
-                // A matching A/B test was found, send out any decisions
+                // Send out a decision event for an A/B Test
+                *send_decision &= true;
+
                 result
             }
             None => {
+                // Do not send any decision for a Rollout (Targeted Delivery)
+                *send_decision = false;
+
                 // No direct experiment found, let's look at the Rollout
                 let rollout = self.client.datafile().rollout(flag.rollout_id()).unwrap(); // TODO: remove unwrap
 
@@ -186,14 +206,14 @@ impl UserContext<'_> {
                 rollout
                     .experiments()
                     .iter()
-                    .find_map(|experiment| self.decide_variation_for_experiment(experiment, false))
+                    .find_map(|experiment| self.decide_variation_for_experiment(experiment))
             }
         }
     }
 
     fn decide_variation_for_experiment<'a>(
-        &'a self, experiment: &'a Experiment, send_decision: bool,
-    ) -> Option<&Variation> {
+        &'a self, experiment: &'a Experiment
+    ) -> Option<(&'a Experiment, &'a Variation)> {
         // Use references for the ids
         let user_id = self.user_id();
         let experiment_id = experiment.id();
@@ -208,32 +228,15 @@ impl UserContext<'_> {
         // Bring the hash into a range of 0 to 10_000
         let bucket_value = ((hash_value as f64) / (u32::MAX as f64) * MAX_OF_RANGE) as u64;
 
-        // Get the variation according to the traffic allocation
-        let result = experiment.traffic_allocation().variation(bucket_value);
-
-        match result {
-            Some(variation_id) => {
-                if send_decision {
-                    #[cfg(feature = "online")]
-                    {
-                        // Send out a decision event as a side effect
-                        let account_id = self.client.datafile().account_id();
-                        let campaign_id = experiment.campaign_id();
-
-                        // Create event_api::Event to send to dispatcher
-                        let decision_event =
-                            event_api::Event::decision(account_id, user_id, campaign_id, experiment_id, variation_id);
-
-                        // Ignore result of the send_decision function
-                        self.client.event_dispatcher().send_event(decision_event);
-                    }
-                }
-
-                // Find the variation belonging to this variation ID
-                experiment.variation(variation_id)
-            }
-            None => None,
-        }
+        // Get the variation ID according to the traffic allocation
+        experiment.traffic_allocation()
+            .variation(bucket_value)
+            // Map it to a Variation struct
+            .map(|variation_id| experiment.variation(variation_id))
+            .flatten()
+            // Combine it with the experiment
+            .map(|variation| Some((experiment, variation)))
+            .flatten()
     }
 }
 

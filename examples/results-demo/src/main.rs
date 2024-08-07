@@ -16,14 +16,6 @@ const FLAG_KEY: &str = "results_demo";
 const ADD_TO_CART_EVENT_KEY: &str = "add_to_cart";
 const PURCHASE_EVENT_KEY: &str = "purchase";
 
-enum ProductCategory {
-    Games,
-    Controllers,
-    Headsets,
-    Mouses,
-    Keyboards,
-}
-
 /// Whether a random event does or doesn't happen
 fn random_event_does_happen(chance: f32) -> bool {
     random::<f32>() < chance
