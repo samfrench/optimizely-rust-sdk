@@ -58,12 +58,12 @@ impl Default for BatchedEventDispatcher {
                         payload.add_decision_event(&user_id, &decision);
                     },
                 }
-            }
 
-            // Send payload if reached the batch threshold
-            if let Some(payload) = payload_option.take_if(|payload| payload.size() >= DEFAULT_BATCH_THRESHOLD) {
-                log::debug!("Reached DEFAULT_BATCH_THRESHOLD");
-                payload.send();
+                // Send payload if reached the batch threshold
+                if let Some(payload) = payload_option.take_if(|payload| payload.size() >= DEFAULT_BATCH_THRESHOLD) {
+                    log::debug!("Reached DEFAULT_BATCH_THRESHOLD");
+                    payload.send();
+                }
             }
         });
 
