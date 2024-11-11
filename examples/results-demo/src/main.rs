@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 use uuid::Uuid;
 
 // Production SDK key
-const SDK_KEY: &str = "K2rKjU83y2YZcZWnvR35A";
+const SDK_KEY: &str = "4E5fffEkXpkgULW9AhtCL";
 
 // Flag for which to generate data
 const FLAG_KEY: &str = "results_demo";
@@ -57,9 +57,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 
             // Different conversion rate depending on variation
             let conversion_rate = match decision.variation_key() {
-                "variation_1" => 0.116,
-                "variation_2" => 0.125,
-                "variation_3" => 0.117,
+                "variation_1" => 0.12,
+                "variation_2" => 0.14,
+                "variation_3" => 0.11,
                 _ => 0.0,
             };
 
