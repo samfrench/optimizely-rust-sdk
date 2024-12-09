@@ -6,11 +6,11 @@ use std::collections::HashMap;
 #[derive(Deserialize, Debug)]
 pub struct FeatureFlag {
     #[serde()]
-    key: String,
+    pub key: String,
     #[serde(rename = "rolloutId")]
-    rollout_id: String,
+    pub rollout_id: String,
     #[serde(rename = "experimentIds")]
-    experiment_ids: Vec<String>,
+    pub experiment_ids: Vec<String>,
     // TODO: variables
 }
 

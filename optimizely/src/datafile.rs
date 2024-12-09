@@ -59,9 +59,24 @@ impl Datafile {
         self.0.feature_flags().get(flag_key)
     }
 
+    pub fn flags(&self) -> impl Iterator<Item = &FeatureFlag> {
+        self.0.feature_flags().values()
+    }
+
     /// Get the experiment with the given experiment ID
     pub fn experiment(&self, experiment_id: &str) -> Option<&Experiment> {
         self.0.experiments().get(experiment_id)
+    }
+
+    pub fn experiment_by_name(&self, experiment_name: &str) -> Option<&Experiment> {
+        self.0
+            .experiments()
+            .values()
+            .find(|experiment| experiment.key() == experiment_name)
+    }
+
+    pub fn experiments(&self) -> impl Iterator<Item = &Experiment> {
+        self.0.experiments().values()
     }
 
     /// Get the rollout with the given rollout ID

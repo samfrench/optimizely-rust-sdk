@@ -9,6 +9,8 @@ use super::{TrafficAllocation, Variation};
 pub struct Experiment {
     #[serde()]
     id: String,
+    #[serde()]
+    key: String,
     #[serde(rename = "layerId")]
     campaign_id: String,
     #[serde(rename = "trafficAllocation", deserialize_with = "TrafficAllocation::deserialize")]
@@ -33,6 +35,10 @@ impl Experiment {
     #[allow(dead_code)]
     pub fn id(&self) -> &str {
         &self.id
+    }
+
+    pub fn key(&self) -> &str {
+        &self.key
     }
 
     #[allow(dead_code)]

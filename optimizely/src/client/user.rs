@@ -142,7 +142,17 @@ impl UserContext<'_> {
             None => {
                 // When flag key cannot be found, return the off variation
                 // CONSIDERATION: Could have used Result<Decision, E> but this is how other Optimizely SDKs work
+                // Current behaviour ignoring legacy experiments
                 return Decision::off(flag_key);
+                // // Allow legacy experiments to default to first variant
+                // let experiment = self.client.datafile().experiment_by_name(flag_key).unwrap(); // TODO: remove unwrap
+
+                // &FeatureFlag {
+                //     key: flag_key.to_string(),
+                //     rollout_id: "".to_string(),
+                //     experiment_ids: vec![experiment.id().to_string()],
+                //     // Add other fields as necessary
+                // }
             }
         };
 
