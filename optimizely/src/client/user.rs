@@ -1,5 +1,5 @@
 // External imports
-use fasthash::murmur3::hash32_with_seed as murmur3_hash;
+use murmur3::murmur3_32 as murmur3_hash;
 use std::collections::HashMap;
 
 // Imports from crate
@@ -223,7 +223,8 @@ impl UserContext<'_> {
 
         // To hash the bucket key it needs to be converted to an array of `u8` bytes
         // Use Murmur3 (32-bit) with seed
-        let hash_value = murmur3_hash(bucketing_key.as_bytes(), HASH_SEED);
+        let mut bytes = bucketing_key.as_bytes();
+        let hash_value = murmur3_hash(&mut bytes, HASH_SEED).unwrap();
 
         // Bring the hash into a range of 0 to 10_000
         let bucket_value = ((hash_value as f64) / (u32::MAX as f64) * MAX_OF_RANGE) as u64;
