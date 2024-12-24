@@ -154,13 +154,13 @@ impl UserContext<'_> {
             Some((experiment, variation)) => {
                 // Unpack the variation and create Decision struct
                 Decision::new(
-                        flag_key,
-                        experiment.campaign_id(),
-                        experiment.id(),
-                        variation.id(),
-                        variation.key(),
-                        variation.is_feature_enabled(),
-                    )
+                    flag_key,
+                    experiment.campaign_id(),
+                    experiment.id(),
+                    variation.id(),
+                    variation.key(),
+                    variation.is_feature_enabled(),
+                )
             }
             None => {
                 // No experiment or rollout found, or user does not qualify for any
@@ -170,14 +170,18 @@ impl UserContext<'_> {
 
         #[cfg(feature = "online")]
         if send_decision {
-            self.client.event_dispatcher().send_decision_event(&self, decision.clone());
+            self.client
+                .event_dispatcher()
+                .send_decision_event(&self, decision.clone());
         }
 
         // Return
         decision
     }
 
-    fn decide_variation_for_flag(&self, flag: &FeatureFlag, send_decision: &mut bool) -> Option<(&Experiment, &Variation)> {
+    fn decide_variation_for_flag(
+        &self, flag: &FeatureFlag, send_decision: &mut bool,
+    ) -> Option<(&Experiment, &Variation)> {
         // Find first Experiment for which this user qualifies
         let result = flag.experiments_ids().iter().find_map(|experiment_id| {
             let experiment = self.client.datafile().experiment(experiment_id);
@@ -212,7 +216,7 @@ impl UserContext<'_> {
     }
 
     fn decide_variation_for_experiment<'a>(
-        &'a self, experiment: &'a Experiment
+        &'a self, experiment: &'a Experiment,
     ) -> Option<(&'a Experiment, &'a Variation)> {
         // Use references for the ids
         let user_id = self.user_id();
@@ -230,7 +234,8 @@ impl UserContext<'_> {
         let bucket_value = ((hash_value as f64) / (u32::MAX as f64) * MAX_OF_RANGE) as u64;
 
         // Get the variation ID according to the traffic allocation
-        experiment.traffic_allocation()
+        experiment
+            .traffic_allocation()
             .variation(bucket_value)
             // Map it to a Variation struct
             .map(|variation_id| experiment.variation(variation_id))

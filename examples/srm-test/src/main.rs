@@ -23,7 +23,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         let user_id = Uuid::new_v4().as_hyphenated().to_string();
 
         // Get variation key
-        let variation_key = client.create_user_context(&user_id)
+        let variation_key = client
+            .create_user_context(&user_id)
             .decide_with_options(FLAG_KEY, &decide_options)
             .variation_key()
             .to_string();

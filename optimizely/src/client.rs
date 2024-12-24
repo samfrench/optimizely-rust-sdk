@@ -41,7 +41,7 @@ pub struct Client {
 
 impl Client {
     /// Create a new user context for a given user id
-    pub fn create_user_context<'a>(&'a self, user_id: &'a str) -> UserContext {
+    pub fn create_user_context<'a>(&'a self, user_id: &'a str) -> UserContext<'a> {
         // Create an empty set of user attributes
         let attributes = UserAttributes::new();
 
@@ -51,7 +51,7 @@ impl Client {
     /// Create a new user context for a given user id
     pub fn create_user_context_with_attributes<'a>(
         &'a self, user_id: &'a str, attributes: UserAttributes,
-    ) -> UserContext {
+    ) -> UserContext<'a> {
         UserContext::new(self, user_id, attributes)
     }
 

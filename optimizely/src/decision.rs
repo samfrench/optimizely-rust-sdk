@@ -16,7 +16,9 @@ pub struct Decision {
 }
 
 impl Decision {
-    pub(crate) fn new<T: Into<String>>(flag_key: T, campaign_id: T, experiment_id: T, variation_id: T, variation_key: T, enabled: bool) -> Decision {
+    pub(crate) fn new<T: Into<String>>(
+        flag_key: T, campaign_id: T, experiment_id: T, variation_id: T, variation_key: T, enabled: bool,
+    ) -> Decision {
         Decision {
             flag_key: flag_key.into(),
             campaign_id: campaign_id.into(),

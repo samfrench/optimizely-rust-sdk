@@ -44,7 +44,11 @@ impl Default for BatchedEventDispatcher {
             // Keep receiving new messages from the main thread
             for message in receiver.iter() {
                 // Deconstruct the message
-                let ThreadMessage { account_id, user_id, event } = message;
+                let ThreadMessage {
+                    account_id,
+                    user_id,
+                    event,
+                } = message;
 
                 // Use existing payload or create new one
                 let payload = payload_option.get_or_insert_with(|| Payload::new(account_id));
@@ -53,10 +57,10 @@ impl Default for BatchedEventDispatcher {
                 match event {
                     EventEnum::Conversion(conversion) => {
                         payload.add_conversion_event(&user_id, &conversion);
-                    },
+                    }
                     EventEnum::Decision(decision) => {
                         payload.add_decision_event(&user_id, &decision);
-                    },
+                    }
                 }
 
                 // Send payload if reached the batch threshold
