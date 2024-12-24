@@ -2,11 +2,10 @@
 #![allow(dead_code)]
 
 // External imports
-use std::cell::RefCell;
-use std::rc::Rc;
+use std::sync::{Arc, RwLock};
 
 // Imports from Optimizely crate
-use optimizely::{Client, client::UserContext, Conversion, Decision, event_api::EventDispatcher};
+use optimizely::{client::UserContext, event_api::EventDispatcher, Client, Conversion, Decision};
 
 // This is the account ID of mark.biesheuvel@optimizely.com
 pub const ACCOUNT_ID: &str = "21537940595";
@@ -21,41 +20,53 @@ pub const FILE_PATH: &str = "../datafiles/sandbox.json";
 // This is the revision number of the bundled datafile
 pub const REVISION: u32 = 73;
 
-// List of conversions wrapped in a reference counted mutable memory location
-type ConversionList = Rc<RefCell<Vec<Conversion>>>;
+// In-memory thread-safe list of any type
+pub struct SyncList<T>(Arc<RwLock<Vec<T>>>);
 
-// List of decisions wrapped in a reference counted mutable memory location
-type DecisionList = Rc<RefCell<Vec<Decision>>>;
-
-// Struct that holds the EventList and implement the EventDispatcher trait
-#[derive(Default)]
-pub(super) struct EventStore {
-    conversions: ConversionList,
-    decisions: DecisionList,
+impl<T> Default for SyncList<T> {
+    fn default() -> Self {
+        Self(Arc::new(RwLock::new(Vec::default())))
+    }
 }
 
-// Implement Send and Sync for EventStore
-unsafe impl Send for EventStore {}
-unsafe impl Sync for EventStore {}
-
-// Return a new reference counted point to the list
-impl EventStore {
-    fn conversions(&self) -> ConversionList {
-        Rc::clone(&self.conversions)
+impl<T> SyncList<T> {
+    fn add(&self, item: T) {
+        // Acquire lock on the RwLock
+        if let Ok(mut vec) = self.0.write() {
+            // Add item to the list
+            vec.push(item);
+        } else {
+            // Error handling not implemented in this example
+        }
     }
 
-    fn decisions(&self) -> DecisionList {
-        Rc::clone(&self.decisions)
+    pub fn len(&self) -> usize {
+        match self.0.read() {
+            Ok(vec) => vec.len(),
+            Err(_) => 0,
+        }
     }
+
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
+// Struct that holds conversion and decisions in memory and implement the EventDispatcher trait
+#[derive(Default)]
+pub struct EventStore {
+    conversions: SyncList<Conversion>,
+    decisions: SyncList<Decision>,
 }
 
 // Implementing the EventDispatcher using the interior mutability pattern
 impl EventDispatcher for EventStore {
-    fn send_conversion_event(&self, _user_context: &UserContext, conversion: Conversion){
-        self.conversions.borrow_mut().push(conversion);
+    fn send_conversion_event(&self, _user_context: &UserContext, conversion: Conversion) {
+        self.conversions.add(conversion);
     }
+
     fn send_decision_event(&self, _user_context: &UserContext, decision: Decision) {
-        self.decisions.borrow_mut().push(decision);
+        self.decisions.add(decision);
     }
 }
 
@@ -64,18 +75,18 @@ impl EventDispatcher for EventStore {
 // - a list of events that was send to the EventDispatcher
 pub struct TestContext {
     pub client: Client,
-    pub conversions: ConversionList,
-    pub decisions: DecisionList,
+    pub conversions: SyncList<Conversion>,
+    pub decisions: SyncList<Decision>,
 }
 
 // A setup function used in multiple tests
-pub(super) fn setup() -> TestContext {
+pub fn setup() -> TestContext {
     // Create a struct to store events
     let event_store = EventStore::default();
 
-    // Clone RC
-    let conversions = event_store.conversions();
-    let decisions = event_store.decisions();
+    // Clone reference to the lists
+    let conversions = event_store.conversions.clone();
+    let decisions = event_store.decisions.clone();
 
     // Build client
     let client = Client::from_local_datafile(FILE_PATH)
@@ -83,5 +94,9 @@ pub(super) fn setup() -> TestContext {
         .with_event_dispatcher(event_store)
         .initialize();
 
-    TestContext { client, conversions, decisions }
+    TestContext {
+        client,
+        conversions,
+        decisions,
+    }
 }
